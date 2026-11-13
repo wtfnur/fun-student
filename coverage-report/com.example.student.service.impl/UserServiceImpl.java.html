@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report"></a> &gt; <a href="index.source.html" class="el_package">com.example.student.service.impl</a> &gt; <span class="el_source">UserServiceImpl.java</span></div><h1>UserServiceImpl.java</h1><pre class="source lang-java linenums">package com.example.student.service.impl;
+
+import com.example.student.dto.user.UserRequest;
+import com.example.student.dto.user.UserResponse;
+import com.example.student.dto.user.UserResponseList;
+import com.example.student.exception.EmailAlreadyExistsException;
+import com.example.student.exception.EntityNotFoundException;
+import com.example.student.mapper.UserMapper;
+import com.example.student.model.User;
+import com.example.student.repository.UserRepository;
+import com.example.student.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.text.MessageFormat;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public boolean existsByEmail(String email) {
+<span class="fc" id="L28">        return userRepository.existsByEmail(email);</span>
+    }
+
+    @Override
+    public boolean register(UserRequest userRequest) {
+<span class="fc" id="L33">        User user = userMapper.toEntity(userRequest);</span>
+<span class="pc bpc" id="L34" title="1 of 4 branches missed.">        if (user == null || user.getEmail() == null) {</span>
+<span class="fc" id="L35">            return false;</span>
+        }
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (userRepository.existsByEmail(user.getEmail())) {</span>
+<span class="fc" id="L38">            return false;</span>
+        }
+<span class="pc bpc" id="L40" title="2 of 4 branches missed.">        if (user.getPassword() != null &amp;&amp; !user.getPassword().isBlank()) {</span>
+<span class="fc" id="L41">            user.setPassword(passwordEncoder.encode(user.getPassword()));</span>
+        }
+<span class="fc" id="L43">        userRepository.save(user);</span>
+<span class="fc" id="L44">        return true;</span>
+    }
+
+    @Override
+    public User findByEmail(String email) {
+<span class="fc" id="L49">        return userRepository.findByEmail(email)</span>
+<span class="fc" id="L50">                .orElseThrow(</span>
+<span class="fc" id="L51">                        ()-&gt;new EntityNotFoundException(</span>
+<span class="fc" id="L52">                                MessageFormat.format(&quot;User with email {0} not found!&quot;, email)));</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public UserResponseList findAll() {
+<span class="fc" id="L58">        return userMapper.toListResponse(userRepository.findAll());</span>
+    }
+
+    @Transactional
+    @Override
+    public UserResponse save(UserRequest userRequest) {
+<span class="fc bfc" id="L64" title="All 4 branches covered.">        if (userRequest.getPassword() == null || userRequest.getPassword().isBlank()</span>
+<span class="fc bfc" id="L65" title="All 4 branches covered.">                || userRequest.getPassword().length() &lt; 6 || userRequest.getPassword().length() &gt; 72) {</span>
+<span class="fc" id="L66">            throw new IllegalArgumentException(&quot;Пароль должен содержать от 6 до 72 символов&quot;);</span>
+        }
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (userRepository.existsByEmail(userRequest.getEmail())) {</span>
+<span class="fc" id="L69">            throw new EmailAlreadyExistsException(</span>
+<span class="fc" id="L70">                    MessageFormat.format(&quot;Email {0} is already exists&quot;, userRequest.getEmail()));</span>
+        } else {
+<span class="fc" id="L72">            User user = new User();</span>
+<span class="fc" id="L73">            user.setEmail(userRequest.getEmail());</span>
+<span class="fc" id="L74">            user.setPassword(passwordEncoder.encode(userRequest.getPassword()));</span>
+<span class="fc" id="L75">            user.setRoles(userRequest.getRoles());</span>
+<span class="fc" id="L76">            return userMapper.toResponse(userRepository.save(user));</span>
+        }
+    }
+
+    @Transactional
+    @Override
+    public UserResponse updateUser(Long id, UserRequest request) {
+<span class="fc" id="L83">        User existing = userRepository.findById(id)</span>
+<span class="fc" id="L84">                .orElseThrow(() -&gt; new EntityNotFoundException(&quot;Пользователь не найден&quot;));</span>
+<span class="fc" id="L85">        userRepository.findByEmail(request.getEmail()).ifPresent(other -&gt; {</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">            if (!other.getId().equals(id)) {</span>
+<span class="fc" id="L87">                throw new EmailAlreadyExistsException(&quot;Пользователь с таким email уже существует&quot;);</span>
+            }
+<span class="fc" id="L89">        });</span>
+<span class="fc" id="L90">        existing.setEmail(request.getEmail());</span>
+<span class="fc" id="L91">        existing.setRoles(request.getRoles());</span>
+<span class="fc bfc" id="L92" title="All 4 branches covered.">        if (request.getPassword() != null &amp;&amp; !request.getPassword().isBlank()) {</span>
+<span class="fc bfc" id="L93" title="All 4 branches covered.">            if (request.getPassword().length() &lt; 6 || request.getPassword().length() &gt; 72) {</span>
+<span class="fc" id="L94">                throw new IllegalArgumentException(&quot;Пароль должен содержать от 6 до 72 символов&quot;);</span>
+            }
+<span class="fc" id="L96">            existing.setPassword(passwordEncoder.encode(request.getPassword()));</span>
+        }
+<span class="fc" id="L98">        return userMapper.toResponse(userRepository.save(existing));</span>
+    }
+
+    @Override
+    public void deleteById(Long id) {
+<span class="fc" id="L103">        userRepository.deleteById(id);</span>
+<span class="fc" id="L104">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>
